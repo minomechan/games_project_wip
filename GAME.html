@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Airplane War Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #001f3f, #003366);
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    #gameArea {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: url('https://i.ibb.co/QP6B5ZT/sky-bg.jpg') center/cover no-repeat;
+    }
+
+    .player {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 60px;
+      background: url('https://i.ibb.co/QXtfvrW/player-plane.png') center/cover no-repeat;
+    }
+
+    .bullet {
+      position: absolute;
+      width: 6px;
+      height: 20px;
+      background: yellow;
+      border-radius: 3px;
+    }
+
+    .enemy {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: url('https://i.ibb.co/5LfgfWm/enemy-plane.png') center/cover no-repeat;
+    }
+
+    .explosion {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: url('https://i.ibb.co/vvHNNWm/explosion.gif') center/cover no-repeat;
+    }
+
+    #scoreBoard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    #gameOver {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      font-size: 40px;
+      display: none;
+    }
+
+    #restartBtn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      background: #00aaff;
+      color: white;
+    }
+
+    #restartBtn:hover {
+      background: #0088cc;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameArea">
+    <div id="player" class="player"></div>
+    <div id="scoreBoard">Score: 0</div>
+    <div id="gameOver">
+      <div>💥 GAME OVER 💥</div>
+      <button id="restartBtn">Restart</button>
+    </div>
+  </div>
+
+  <script>
+    const gameArea = document.getElementById('gameArea');
+    const player = document.getElementById('player');
+    const scoreBoard = document.getElementById('scoreBoard');
+    const gameOverScreen = document.getElementById('gameOver');
+    const restartBtn = document.getElementById('restartBtn');
+
+    let bullets = [];
+    let enemies = [];
+    let score = 0;
+    let gameOver = false;
+    let playerX = window.innerWidth / 2 - 30;
+    let playerY = window.innerHeight - 100;
+    let speed = 7;
+
+    const shootSound = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b151b4a7b.mp3?filename=shooting-sound-fx-112194.mp3');
+    const explosionSound = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_4420cf41ee.mp3?filename=explosion-6055.mp3');
+
+    // Player movement
+    const keys = {};
+    document.addEventListener('keydown', e => keys[e.key] = true);
+    document.addEventListener('keyup', e => keys[e.key] = false);
+
+    function createBullet() {
+      const bullet = document.createElement('div');
+      bullet.classList.add('bullet');
+      bullet.style.left = (playerX + 27) + 'px';
+      bullet.style.top = (playerY - 10) + 'px';
+      gameArea.appendChild(bullet);
+      bullets.push(bullet);
+      shootSound.currentTime = 0;
+      shootSound.play();
+    }
+
+    function createEnemy() {
+      const enemy = document.createElement('div');
+      enemy.classList.add('enemy');
+      enemy.style.left = Math.random() * (window.innerWidth - 60) + 'px';
+      enemy.style.top = '0px';
+      gameArea.appendChild(enemy);
+      enemies.push(enemy);
+    }
+
+    function detectCollision(a, b) {
+      const aRect = a.getBoundingClientRect();
+      const bRect = b.getBoundingClientRect();
+      return !(
+        aRect.top > bRect.bottom ||
+        aRect.bottom < bRect.top ||
+        aRect.right < bRect.left ||
+        aRect.left > bRect.right
+      );
+    }
+
+    function explode(x, y) {
+      const explosion = document.createElement('div');
+      explosion.classList.add('explosion');
+      explosion.style.left = x + 'px';
+      explosion.style.top = y + 'px';
+      gameArea.appendChild(explosion);
+      explosionSound.play();
+      setTimeout(() => explosion.remove(), 600);
+    }
+
+    function endGame() {
+      gameOver = true;
+      gameOverScreen.style.display = 'block';
+    }
+
+    restartBtn.addEventListener('click', () => {
+      location.reload();
+    });
+
+    function gameLoop() {
+      if (gameOver) return;
+
+      // Move player
+      if (keys['ArrowLeft'] && playerX > 0) playerX -= speed;
+      if (keys['ArrowRight'] && playerX < window.innerWidth - 60) playerX += speed;
+      if (keys['ArrowUp'] && playerY > 0) playerY -= speed;
+      if (keys['ArrowDown'] && playerY < window.innerHeight - 80) playerY += speed;
+      if (keys[' '] && Math.random() > 0.9) createBullet(); // control fire rate
+      player.style.left = playerX + 'px';
+      player.style.top = playerY + 'px';
+
+      // Move bullets
+      bullets.forEach((bullet, i) => {
+        let top = parseInt(bullet.style.top);
+        bullet.style.top = top - 10 + 'px';
+        if (top < 0) {
+          bullet.remove();
+          bullets.splice(i, 1);
+        }
+      });
+
+      // Create enemies
+      if (Math.random() < 0.02) createEnemy();
+
+      // Move enemies
+      enemies.forEach((enemy, i) => {
+        let top = parseInt(enemy.style.top);
+        enemy.style.top = top + 4 + 'px';
+        if (top > window.innerHeight) {
+          enemy.remove();
+          enemies.splice(i, 1);
+        }
+
+        // Check collision with player
+        if (detectCollision(player, enemy)) {
+          explode(playerX, playerY);
+          endGame();
+        }
+
+        // Check collision with bullets
+        bullets.forEach((bullet, j) => {
+          if (detectCollision(bullet, enemy)) {
+            explode(parseInt(enemy.style.left), parseInt(enemy.style.top));
+            bullet.remove();
+            enemy.remove();
+            bullets.splice(j, 1);
+            enemies.splice(i, 1);
+            score += 10;
+            scoreBoard.textContent = 'Score: ' + score;
+          }
+        });
+      });
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>
